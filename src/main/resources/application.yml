@@ -1,0 +1,44 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: stock-trading-system
+  datasource:
+    url: jdbc:mysql://localhost:3306/stock_trading_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 99bu88..
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  jwt:
+    secret: "stock-trading-system-demo-secret-key-please-change-in-production"
+    expiration-minutes: 240
+  market:
+    refresh-rate-ms: 5000
+    cache-key: "stock:quotes"
+  risk:
+    max-order-quantity: 10000
+    max-order-amount: 1000000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
