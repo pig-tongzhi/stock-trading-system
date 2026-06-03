@@ -13,6 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+// Spring Security 配置：无状态 JWT 认证
+// 公开接口：登录注册、行情、排行榜、Swagger、前端静态资源
+// 其余接口需携带 Bearer Token
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

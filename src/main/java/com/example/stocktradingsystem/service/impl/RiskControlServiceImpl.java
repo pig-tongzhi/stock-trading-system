@@ -13,6 +13,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+// 风控校验：独立模块，和交易逻辑解耦
+// 校验项：股票可交易性、单笔数量上限（默认1w）、单笔金额上限（默认100w）、
+//        买入余额是否充足、卖出持仓是否足够
+// 所有阈值通过 application.yml 配置，无需改代码即可调整
 @Service
 public class RiskControlServiceImpl implements RiskControlService {
 

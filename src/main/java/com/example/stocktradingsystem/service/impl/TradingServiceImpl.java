@@ -39,6 +39,9 @@ public class TradingServiceImpl implements TradingService {
     private final RiskControlService riskControlService;
     private final CurrentUserService currentUserService;
 
+    // 核心交易入口：在一个事务内完成下单、资金扣除、持仓更新、成交记录写入
+    // 买入：扣现金 → 新建/追加持仓（加权平均成本）
+    // 卖出：加现金 → 扣减持仓 → 计算已实现盈亏
     @Override
     @Transactional
     public TradeOrderResponse placeOrder(OrderPlaceRequest request) {
@@ -105,6 +108,8 @@ public class TradingServiceImpl implements TradingService {
         tradeOrderRepository.save(order);
     }
 
+    // 买入处理：扣减可用余额，计算加权平均持仓成本
+    // 加权平均成本 = (原持仓市值 + 新买入金额) / 总持仓数量
     private void handleBuy(Account account, Stock stock, Optional<Position> optionalPosition, Integer quantity,
                            BigDecimal price, BigDecimal amount, LocalDateTime now) {
         account.setAvailableBalance(account.getAvailableBalance().subtract(amount));
@@ -134,6 +139,7 @@ public class TradingServiceImpl implements TradingService {
         positionRepository.save(position);
     }
 
+    // 卖出处理：资金入账，计算已实现盈亏 = 卖出金额 - 卖出数量 × 加权平均成本
     private void handleSell(Account account, Stock stock, Position position, Integer quantity,
                             BigDecimal price, BigDecimal amount, LocalDateTime now) {
         account.setAvailableBalance(account.getAvailableBalance().add(amount));

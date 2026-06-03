@@ -10,6 +10,8 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
+// AOP 切面：统一记录交易日志，成功/失败都记录 userId、股票代码、耗时等关键信息
+// 通过 @Around 环绕增强，不入侵核心交易逻辑
 @Slf4j
 @Aspect
 @Component
