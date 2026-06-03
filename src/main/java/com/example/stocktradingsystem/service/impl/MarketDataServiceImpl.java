@@ -2,6 +2,8 @@ package com.example.stocktradingsystem.service.impl;
 
 import com.example.stocktradingsystem.dto.StockQuoteResponse;
 import com.example.stocktradingsystem.entity.Stock;
+import com.example.stocktradingsystem.entity.StockMaster;
+import com.example.stocktradingsystem.repository.StockMasterRepository;
 import com.example.stocktradingsystem.repository.StockRepository;
 import com.example.stocktradingsystem.service.MarketDataService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -33,6 +35,7 @@ public class MarketDataServiceImpl implements MarketDataService {
     private static final String EASTMONEY_URL = "https://qt.gtimg.cn/q={secids}";
 
     private final StockRepository stockRepository;
+    private final StockMasterRepository stockMasterRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
@@ -72,6 +75,36 @@ public class MarketDataServiceImpl implements MarketDataService {
         }
         stockRepository.saveAll(stocks);
         cacheQuotes(stocks.stream().map(this::toQuoteResponse).toList());
+    }
+
+    // 添加股票到看板：从 StockMaster 取名称，插入 Stock 表
+    @Override
+    @Transactional
+    public void addStock(String code) {
+        if (stockRepository.existsById(code)) {
+            return;
+        }
+        StockMaster master = stockMasterRepository.findById(code).orElse(null);
+        if (master == null) {
+            log.warn("Stock not found in master: {}", code);
+            return;
+        }
+        Stock stock = new Stock();
+        stock.setCode(master.getCode());
+        stock.setName(master.getName());
+        stock.setLatestPrice(BigDecimal.ZERO);
+        stock.setPreviousClose(BigDecimal.ZERO);
+        stock.setChangeRate(BigDecimal.ZERO);
+        stock.setTradingEnabled(true);
+        stock.setUpdatedAt(LocalDateTime.now());
+        stockRepository.save(stock);
+    }
+
+    // 从看板移除股票
+    @Override
+    @Transactional
+    public void removeStock(String code) {
+        stockRepository.deleteById(code);
     }
 
     // 腾讯行情接口：~ 分隔的文本格式
@@ -154,14 +187,14 @@ public class MarketDataServiceImpl implements MarketDataService {
     private void initDemoStocks() {
         LocalDateTime now = LocalDateTime.now();
         List<Stock> stocks = List.of(
-                stock("600519", "Kweichow Moutai", "1688.00", now),
-                stock("000001", "Ping An Bank", "11.20", now),
-                stock("300750", "CATL", "192.50", now),
-                stock("600036", "China Merchants Bank", "35.80", now),
-                stock("601318", "Ping An Insurance", "42.60", now),
-                stock("002594", "BYD", "218.30", now),
-                stock("000858", "Wuliangye", "138.40", now),
-                stock("600276", "Hengrui Medicine", "46.70", now)
+                stock("600519", "贵州茅台", "1688.00", now),
+                stock("000001", "平安银行", "11.20", now),
+                stock("300750", "宁德时代", "192.50", now),
+                stock("600036", "招商银行", "35.80", now),
+                stock("601318", "中国平安", "42.60", now),
+                stock("002594", "比亚迪", "218.30", now),
+                stock("000858", "五粮液", "138.40", now),
+                stock("600276", "恒瑞医药", "46.70", now)
         );
         stockRepository.saveAll(stocks);
     }

@@ -4,10 +4,7 @@ import com.example.stocktradingsystem.dto.ApiResponse;
 import com.example.stocktradingsystem.dto.StockQuoteResponse;
 import com.example.stocktradingsystem.service.MarketDataService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -26,6 +23,18 @@ public class MarketDataController {
     @PostMapping("/refresh")
     public ApiResponse<Void> refreshLatestQuotes() {
         marketDataService.refreshLatestQuotes();
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/add")
+    public ApiResponse<Void> addStock(@RequestParam String code) {
+        marketDataService.addStock(code);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/remove")
+    public ApiResponse<Void> removeStock(@RequestParam String code) {
+        marketDataService.removeStock(code);
         return ApiResponse.success(null);
     }
 }

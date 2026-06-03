@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Card, Spin, Tag, Space, Row, Col, Typography } from 'antd';
+import { useState, useCallback } from 'react';
+import { Card, Spin, Tag, Space, Row, Col, Typography, message } from 'antd';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -7,12 +7,22 @@ import {
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useQuotes } from '../hooks/useQuotes';
+import StockSearch from '../components/StockSearch';
 
 const { Text, Title } = Typography;
 
 export default function Dashboard() {
   const { quotes, loading, selectedQuote, setSelectedCode, getFlash } = useQuotes();
   const [flashMap, setFlashMap] = useState<Record<string, 'up' | 'down' | null>>({});
+
+  const handleStockSelect = useCallback(async (stock: { code: string; name: string }) => {
+    try {
+      await fetch('/api/market-data/add?code=' + stock.code, { method: 'POST' });
+      message.success(`已添加 ${stock.name}`);
+    } catch {
+      message.error('添加失败');
+    }
+  }, []);
 
   const handleSelect = (code: string) => {
     setSelectedCode(code);
@@ -76,6 +86,9 @@ export default function Dashboard() {
 
   return (
     <Spin spinning={loading}>
+      <div style={{ marginBottom: 16 }}>
+        <StockSearch onSelect={handleStockSelect} />
+      </div>
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
           <Card

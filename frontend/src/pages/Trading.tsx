@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Row, Col, Input, Button, Tabs, Statistic, message, Spin, Tag, Space, Typography, Divider } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useQuotes } from '../hooks/useQuotes';
 import { tradingApi, isLoggedIn } from '../api';
+import StockSearch from '../components/StockSearch';
 
 const { Text, Title } = Typography;
 
@@ -13,6 +14,15 @@ export default function Trading() {
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState(100);
   const [placing, setPlacing] = useState(false);
+
+  const handleStockSelect = useCallback(async (stock: { code: string; name: string }) => {
+    try {
+      await fetch('/api/market-data/add?code=' + stock.code, { method: 'POST' });
+      message.success(`已添加 ${stock.name}`);
+    } catch {
+      message.error('添加失败');
+    }
+  }, []);
   const [balance, setBalance] = useState(0);
 
   useEffect(() => {
@@ -149,6 +159,9 @@ export default function Trading() {
             }}
             style={{ border: '1px solid #334155', borderRadius: 12, height: '100%' }}
           >
+            <div style={{ padding: '0 0 8px' }}>
+              <StockSearch onSelect={handleStockSelect} placeholder="搜索添加自选" />
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {quoteList.map((q) => (
                 <div

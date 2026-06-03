@@ -9,4 +9,8 @@ public interface MarketDataService {
     List<StockQuoteResponse> listQuotes();
 
     void refreshLatestQuotes();
+
+    void addStock(String code);
+
+    void removeStock(String code);
 }
