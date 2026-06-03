@@ -29,8 +29,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class MarketDataServiceImpl implements MarketDataService {
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
-    // 东方财富批量行情 API：支持一次请求获取多只股票实时数据
-    private static final String EASTMONEY_URL = "https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids={secids}";
+    // 腾讯行情 API：~ 分隔文本格式，极稳定，支持批量查询 sh/sz 前缀
+    private static final String EASTMONEY_URL = "https://qt.gtimg.cn/q={secids}";
 
     private final StockRepository stockRepository;
     private final StringRedisTemplate redisTemplate;
@@ -74,55 +74,62 @@ public class MarketDataServiceImpl implements MarketDataService {
         cacheQuotes(stocks.stream().map(this::toQuoteResponse).toList());
     }
 
-    // 东方财富批量行情接口：secid 规则 "1." 上海（6/9开头）、"0." 深圳
-    // 字段：f2=最新价 f18=昨收 f3=涨跌幅
-    // 单次请求拉全部股票，任一股票返回异常则整体降级
+    // 腾讯行情接口：~ 分隔的文本格式
+    // 前缀：sh（上海6/9开头）、sz（深圳0/3开头）
+    // 批量查询返回多行，每行格式：v_MARKETCODE="...~name~code~price~prevClose~..."
+    // 索引：[1]=名称 [2]=代码 [3]=最新价 [4]=昨收
     private boolean fetchFromEastMoney(List<Stock> stocks) {
         try {
             String secids = stocks.stream()
                     .map(s -> {
-                        String market = s.getCode().startsWith("6") || s.getCode().startsWith("9") ? "1" : "0";
-                        return market + "." + s.getCode();
+                        String prefix = s.getCode().startsWith("6") || s.getCode().startsWith("9") ? "sh" : "sz";
+                        return prefix + s.getCode();
                     })
                     .collect(java.util.stream.Collectors.joining(","));
             String url = EASTMONEY_URL.replace("{secids}", secids);
-            Map<String, Object> body = restTemplate.getForObject(url, Map.class);
-            if (body == null || !"0".equals(String.valueOf(body.get("rc")))) {
-                log.warn("EastMoney API failed: rc={}", body);
-                return false;
-            }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) body.get("data");
-            if (data == null) {
-                return false;
-            }
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> diff = (List<Map<String, Object>>) data.get("diff");
-            if (diff == null || diff.size() != stocks.size()) {
+            String response = restTemplate.getForObject(url, String.class);
+            if (response == null || response.isBlank()) {
                 return false;
             }
 
-            for (int i = 0; i < stocks.size(); i++) {
-                Map<String, Object> item = diff.get(i);
-                Stock stock = stocks.get(i);
+            for (Stock stock : stocks) {
+                String prefix = stock.getCode().startsWith("6") || stock.getCode().startsWith("9") ? "sh" : "sz";
+                String marker = "v_" + prefix + stock.getCode() + "=\"";
+                int start = response.indexOf(marker);
+                if (start < 0) {
+                    return false;
+                }
+                start += marker.length();
+                int end = response.indexOf("\"", start);
+                if (end < 0) {
+                    return false;
+                }
+                String line = response.substring(start, end);
+                String[] parts = line.split("~");
+                if (parts.length < 5) {
+                    return false;
+                }
 
-                BigDecimal price = new BigDecimal(String.valueOf(item.get("f2")));
-                BigDecimal prevClose = new BigDecimal(String.valueOf(item.get("f18")));
-                BigDecimal changeRate = new BigDecimal(String.valueOf(item.get("f3")));
+                BigDecimal price = new BigDecimal(parts[3]);
+                BigDecimal prevClose = new BigDecimal(parts[4]);
 
                 if (price.compareTo(BigDecimal.ZERO) <= 0) {
                     return false;
                 }
 
-                stock.setPreviousClose(prevClose);
+                BigDecimal changeRate = price.subtract(prevClose)
+                        .multiply(ONE_HUNDRED)
+                        .divide(prevClose, 4, RoundingMode.HALF_UP);
+
+                stock.setPreviousClose(prevClose.setScale(4, RoundingMode.HALF_UP));
                 stock.setLatestPrice(price.setScale(4, RoundingMode.HALF_UP));
                 stock.setChangeRate(changeRate);
                 stock.setUpdatedAt(LocalDateTime.now());
             }
-            log.info("EastMoney fetch succeeded for {} stocks", stocks.size());
+            log.info("Tencent quote fetch succeeded for {} stocks", stocks.size());
             return true;
         } catch (Exception e) {
-            log.warn("EastMoney fetch failed, fallback to simulation: {}", e.getMessage());
+            log.warn("Tencent quote fetch failed, fallback to simulation: {}", e.getMessage());
             return false;
         }
     }

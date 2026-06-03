@@ -23,6 +23,11 @@ spring:
         format_sql: true
 
 app:
+  http:
+    proxy:
+      enabled: false
+      host: 127.0.0.1
+      port: 7890
   jwt:
     secret: "stock-trading-system-demo-secret-key-please-change-in-production"
     expiration-minutes: 240
